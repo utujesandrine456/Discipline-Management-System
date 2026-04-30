@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-
+import { urbanistNormal, urbanistBold } from './urbanistFont';
 interface ExportColumn {
     header: string;
     key: string;
@@ -35,6 +35,16 @@ export function exportToExcel(
     worksheet['!cols'] = colWidths;
 
     const workbook = XLSX.utils.book_new();
+
+    // Set font for all cells to Urbanist
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+            if (!worksheet[cellAddress]) continue;
+            worksheet[cellAddress].s = { font: { name: 'Urbanist' } };
+        }
+    }
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
     XLSX.writeFile(workbook, `${fileName}.xlsx`);
 }
@@ -50,15 +60,21 @@ export function exportToPDF(
 ) {
     const doc = new jsPDF({ orientation: 'landscape' });
 
+    // Register Urbanist font
+    doc.addFileToVFS('Urbanist-Regular.ttf', urbanistNormal);
+    doc.addFont('Urbanist-Regular.ttf', 'Urbanist', 'normal');
+    doc.addFileToVFS('Urbanist-Bold.ttf', urbanistBold);
+    doc.addFont('Urbanist-Bold.ttf', 'Urbanist', 'bold');
+
     // Header
     doc.setFillColor(10, 14, 46); // #0A0E2E
     doc.rect(0, 0, doc.internal.pageSize.getWidth(), 28, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('Urbanist', 'bold');
     doc.text(title, 14, 14);
     doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('Urbanist', 'normal');
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
 
     // Table
@@ -74,7 +90,7 @@ export function exportToPDF(
         styles: {
             fontSize: 8,
             cellPadding: 3,
-            font: 'helvetica',
+            font: 'Urbanist',
         },
         headStyles: {
             fillColor: [10, 14, 46],
