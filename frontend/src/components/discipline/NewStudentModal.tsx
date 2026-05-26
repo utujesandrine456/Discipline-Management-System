@@ -31,6 +31,8 @@ export function NewStudentModal({ isOpen, onClose, onSuccess, student }: NewStud
         motherPhoneNumber: '',
         year: '',
         classGroup: '',
+        location: '',
+        status: 'IN',
     });
 
     useEffect(() => {
@@ -44,6 +46,8 @@ export function NewStudentModal({ isOpen, onClose, onSuccess, student }: NewStud
                 motherPhoneNumber: student.motherPhoneNumber || '',
                 year: student.year?.toString() || '',
                 classGroup: student.classGroup || '',
+                location: student.location || '',
+                status: student.status || 'IN',
             });
         } else {
             setFormData({
@@ -55,6 +59,8 @@ export function NewStudentModal({ isOpen, onClose, onSuccess, student }: NewStud
                 motherPhoneNumber: '',
                 year: '',
                 classGroup: '',
+                location: '',
+                status: 'IN',
             });
         }
     }, [student, isOpen]);
@@ -162,6 +168,35 @@ export function NewStudentModal({ isOpen, onClose, onSuccess, student }: NewStud
                                             <SelectItem value="D">Class D</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4 pt-2">
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">Current Status</Label>
+                                    <Select
+                                        value={formData.status}
+                                        onValueChange={(val) => setFormData({ ...formData, status: val })}
+                                    >
+                                        <SelectTrigger className="rounded-md border-[#0A0E2E]/10 bg-slate-50 h-11 text-sm font-bold">
+                                            <SelectValue placeholder="Status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="IN">In Campus</SelectItem>
+                                            <SelectItem value="OUT">Out of Campus</SelectItem>
+                                            <SelectItem value="RETURNED">Returned</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">Home Address / Room</Label>
+                                    <Input
+                                        placeholder="e.g. Kigali / Room 102"
+                                        value={formData.location}
+                                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                                        className="rounded-md border-[#0A0E2E]/10 bg-slate-50 focus:bg-white h-11 text-sm font-bold"
+                                    />
                                 </div>
                             </div>
                         </div>

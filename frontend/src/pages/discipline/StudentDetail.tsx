@@ -14,10 +14,16 @@ import {
     Pencil,
     FileText,
     Calendar,
-    AlertCircle
+    AlertCircle,
+    Bus,
+    CreditCard,
+    Map as MapIcon
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { toast } from 'sonner';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { AssignRouteModal } from '@/components/discipline/AssignRouteModal';
+import { UpdateAssignmentStatusModal } from '@/components/discipline/UpdateAssignmentStatusModal';
 
 interface StudentDetail {
     id: number;
@@ -31,48 +37,26 @@ interface StudentDetail {
     classGroup: string;
     status: string;
     email: string;
+    location: string;
     records: any[];
+    transportAssignments?: any[];
 }
 
 export default function StudentDetail() {
     const router = useRouter();
+    const queryClient = useQueryClient();
     const { id } = router.query;
-    const [student, setStudent] = useState<StudentDetail | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [assignModalOpen, setAssignModalOpen] = useState(false);
+    const [statusModalOpen, setStatusModalOpen] = useState(false);
 
-    useEffect(() => {
-        if (!id) return;
-        const fetchStudent = async () => {
-            try {
-                const data = await apiFetch(`/students/${id}`);
-                setStudent(data);
-            } catch (error) {
-                console.error('Error fetching student:', error);
-                toast.error('Student not found');
-                // Fallback for demo
-                setStudent({
-                    id: Number(id),
-                    firstName: 'Jean',
-                    lastName: 'Kabera',
-                    fatherName: 'Peter Kabera',
-                    motherName: 'Alice Kabera',
-                    fatherPhoneNumber: '+250 788 123 456',
-                    motherPhoneNumber: '+250 788 654 321',
-                    year: '1',
-                    classGroup: 'A',
-                    status: 'IN',
-                    email: 'jean.kabera@rca.ac.rw',
-                    records: [
-                        { id: 1, reason: 'Medical Checkup', status: 'RETURNED', outDate: '2024-03-20T08:00:00Z', returnDate: '2024-03-20T16:00:00Z' },
-                        { id: 2, reason: 'Family Emergency', status: 'OUT', outDate: '2024-04-10T10:00:00Z', returnDate: null },
-                    ]
-                });
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchStudent();
-    }, [id]);
+    const { data: student, isLoading: loading } = useQuery<StudentDetail | null>({
+        queryKey: ['student', id],
+        queryFn: () => apiFetch(`/students/${id}`),
+        enabled: !!id,
+        staleTime: 1000 * 60 * 5,
+    });
+
+    const fetchStudent = () => queryClient.invalidateQueries({ queryKey: ['student', id] });
 
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-white">
@@ -81,6 +65,10 @@ export default function StudentDetail() {
     );
 
     if (!student) return <div className="p-20 text-center">Student not found</div>;
+
+    const currentAssignment = student.transportAssignments && student.transportAssignments.length > 0
+        ? student.transportAssignments[0]
+        : null;
 
     return (
         <div className="min-h-screen bg-slate-50/50 text-[#0A0E2E]">
@@ -130,14 +118,68 @@ export default function StudentDetail() {
                                             </div>
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-xs font-bold uppercase text-slate-400">Official Email</p>
+                                            <p className="text-xs font-bold uppercase text-slate-400">Home Address</p>
                                             <div className="flex items-center gap-2 font-bold text-[#0A0E2E]">
-                                                <Mail className="w-4 h-4 text-[#0A0E2E]/50" /> {student.email || `${student.firstName.toLowerCase()}.${student.lastName.toLowerCase()}@rca.ac.rw`}
+                                                <MapPin className="w-4 h-4 text-[#0A0E2E]/50" /> {student.location || 'Kigali, Rwanda'}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                        </section>
+
+                        {/* Transport Section */}
+                        <section className="bg-white rounded-md border border-[#0A0E2E]/10 p-8 shadow-sm">
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-[#0A0E2E]/5 rounded-md text-[#0A0E2E]">
+                                        <Bus className="w-5 h-5" />
+                                    </div>
+                                    <h3 className="text-xl font-bold">Transport Route</h3>
+                                </div>
+                                {!currentAssignment && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setAssignModalOpen(true)}
+                                        className="border-[#0A0E2E] text-[#0A0E2E] font-bold"
+                                    >
+                                        Assign Route
+                                    </Button>
+                                )}
+                            </div>
+
+                            {currentAssignment ? (
+                                <div className="flex items-center justify-between p-6 bg-[#0A0E2E]/5 rounded-md border border-[#0A0E2E]/10">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-white rounded-md shadow-sm">
+                                            <MapPin className="w-6 h-6 text-[#0A0E2E]" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-[#0A0E2E]">{currentAssignment.transport?.location || 'Unknown Location'}</p>
+                                            <p className="text-xs font-medium text-[#0A0E2E]/60 flex items-center gap-1">
+                                                <CreditCard className="w-3 h-3" /> {currentAssignment.transport?.price?.toLocaleString() || 0} RWF
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right flex flex-col items-end gap-2">
+                                        <div>
+                                            <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 leading-none">Payment Status</p>
+                                            <StatusBadge status={currentAssignment.status} />
+                                        </div>
+                                        <button
+                                            onClick={() => setStatusModalOpen(true)}
+                                            className="text-[11px] font-bold text-[#0A0E2E] hover:underline flex items-center gap-1"
+                                        >
+                                            <Pencil className="w-3 h-3" /> Update Status
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="py-8 text-center border-2 border-dashed border-slate-100 rounded-md">
+                                    <p className="text-slate-400 font-medium">No transport route assigned yet.</p>
+                                </div>
+                            )}
                         </section>
 
                         {/* Discipline History */}
@@ -211,18 +253,28 @@ export default function StudentDetail() {
                             </div>
                         </div>
 
-                        <div className="bg-amber-50 border border-amber-200 rounded-md p-6">
-                            <div className="flex gap-3 mb-3">
-                                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-                                <h4 className="font-bold text-amber-900 text-sm">Security Advisory</h4>
-                            </div>
-                            <p className="text-xs font-medium text-amber-800 leading-relaxed">
-                                Accessing student records is logged for security auditing. Ensure you follow data privacy protocolos when viewing personal intelligence.
-                            </p>
-                        </div>
                     </div>
                 </div>
             </div>
+
+            <AssignRouteModal
+                isOpen={assignModalOpen}
+                onClose={() => setAssignModalOpen(false)}
+                onSuccess={fetchStudent}
+                studentId={student.id}
+                studentName={`${student.firstName} ${student.lastName}`}
+            />
+
+            {currentAssignment && (
+                <UpdateAssignmentStatusModal
+                    isOpen={statusModalOpen}
+                    onClose={() => setStatusModalOpen(false)}
+                    onSuccess={fetchStudent}
+                    assignmentId={currentAssignment.id}
+                    currentStatus={currentAssignment.status}
+                    studentName={`${student.firstName} ${student.lastName}`}
+                />
+            )}
         </div>
     );
 }

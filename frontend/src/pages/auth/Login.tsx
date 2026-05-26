@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -129,9 +129,8 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2 text-right">
-              <div className="flex justify-between items-center px-1">
+              <div className="flex justify-start px-1">
                 <label className="text-xs font-semibold text-slate-500">Password</label>
-                <a href="#" className="text-[11px] font-bold text-[#0A0E2E] hover:underline underline-offset-4 italic">Forgot password?</a>
               </div>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 transition-colors group-focus-within:text-[#0A0E2E]">
@@ -150,20 +149,12 @@ export default function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-[#0A0E2E] transition-colors"
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 px-1">
-              <div
-                className={`w-5 h-5 rounded border transition-all flex items-center justify-center cursor-pointer ${rememberMe ? 'bg-[#0A0E2E] border-[#0A0E2E]' : 'border-slate-200 bg-slate-50'}`}
-                onClick={() => setRememberMe(!rememberMe)}
-              >
-                {rememberMe && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-              </div>
-              <span className="text-xs font-semibold text-slate-400">Stay signed in for today</span>
-            </div>
+
 
             <Button
               type="submit"
@@ -185,9 +176,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <p className="mt-12 text-center text-[13px] text-slate-400 font-medium">
-            Don't have an account? <Link href="/register" className="text-[#0A0E2E] font-bold hover:underline">Register</Link>
-          </p>
+
 
           <div className="mt-20 border-t border-slate-50 pt-8 flex flex-col items-center gap-4">
             <p className="text-[10px] text-slate-300 font-bold font-sans">

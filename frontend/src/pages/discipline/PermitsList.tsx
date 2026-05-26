@@ -2,31 +2,28 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { StatusBadge } from '@/components/RCA/Badges';
-import { ExternalLink, Clock, UserCheck, User } from 'lucide-react';
+import { ExternalLink, Clock, UserCheck, User, Download, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
+import { exportToExcel, exportToPDF } from '@/lib/exportUtils';
+
+import { useQuery } from '@tanstack/react-query';
+import { EmptyState } from '@/components/RCA/EmptyState';
 
 export default function PermitsList() {
-  const [permits, setPermits] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: records = [], isLoading: loading } = useQuery<any[]>({
+    queryKey: ['records'],
+    queryFn: () => apiFetch('/records'),
+    staleTime: 1000 * 60 * 5,
+  });
 
-  useEffect(() => {
-    const fetchPermits = async () => {
-      try {
-        const data = await apiFetch('/records');
-        const active = data?.length > 0 ? data.filter((r: any) => r.status === 'OUT') : [
-          { id: 1, studentId: 101, reason: 'Medical Checkup', status: 'OUT', outDate: new Date().toISOString(), student: { firstName: 'Jean', lastName: 'Kabera' } },
-          { id: 3, studentId: 103, reason: 'Holiday', status: 'OUT', outDate: new Date().toISOString(), student: { firstName: 'Eric', lastName: 'Mugisha' } },
-        ];
-        setPermits(active);
-      } catch (error) {
-        console.error('Error fetching permits:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPermits();
-  }, []);
+  const { data: staffList = [] } = useQuery<any[]>({
+    queryKey: ['staff'],
+    queryFn: () => apiFetch('/staff'),
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const permits = records.filter((r: any) => r.status === 'OUT');
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('en-US', {
@@ -36,6 +33,35 @@ export default function PermitsList() {
       minute: '2-digit',
     });
   };
+
+  const permitColumns = [
+    { header: 'Student Name', key: 'studentName' },
+    { header: 'Reason', key: 'reason' },
+    { header: 'Exit Time', key: 'outDate' },
+    { header: 'Approved By', key: 'approvedBy' },
+    { header: 'Status', key: 'status' },
+  ];
+
+  const exportData = permits.map((p: any) => {
+    const sObj = p.staff || p.recordedBy || p.createdBy;
+    let staffName = sObj && sObj.firstName ? `${sObj.firstName} ${sObj.lastName}`.trim() : '';
+
+    if (!staffName || staffName === 'undefined undefined') {
+      const sId = p.recordedById || p.staffId || p.createdById || p.recordedBy?.id || p.staff?.id;
+      const foundStaff = staffList.find((s: any) => s.id === sId);
+      if (foundStaff) staffName = `${foundStaff.firstName} ${foundStaff.lastName}`.trim();
+    }
+
+    if (!staffName || staffName === 'undefined undefined') staffName = 'Authorized Admin';
+
+    return {
+      studentName: p.student ? `${p.student.firstName} ${p.student.lastName}` : 'Unknown',
+      reason: p.reason,
+      outDate: p.outDate ? formatDate(p.outDate) : '',
+      approvedBy: staffName,
+      status: p.status,
+    };
+  });
 
   return (
     <div className="min-h-screen bg-white text-[#0A0E2E]">
@@ -49,9 +75,26 @@ export default function PermitsList() {
             </h2>
             <p className="mt-1 text-sm font-medium text-[#0A0E2E]/70">Real-time monitoring of students currently outside campus.</p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-md border border-[#0A0E2E]/20 bg-white px-4 py-2">
-            <UserCheck className="h-4 w-4 text-[#0A0E2E]" />
-            <span className="text-[11px] font-bold text-[#0A0E2E]">Authorized and tracked</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 border border-[#0A0E2E]/15 rounded-md overflow-hidden bg-white">
+              <button
+                onClick={() => exportToPDF(exportData, permitColumns, 'active_permits', 'RCA — Active Permits')}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#0A0E2E] hover:bg-[#0A0E2E] hover:text-white transition-all"
+              >
+                <Download className="h-3.5 w-3.5" /> PDF
+              </button>
+              <div className="w-px h-6 bg-[#0A0E2E]/15" />
+              <button
+                onClick={() => exportToExcel(exportData, permitColumns, 'active_permits')}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#0A0E2E] hover:bg-[#0A0E2E] hover:text-white transition-all"
+              >
+                <Download className="h-3.5 w-3.5" /> Excel
+              </button>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-md border border-[#0A0E2E]/20 bg-white px-4 py-2">
+              <UserCheck className="h-4 w-4 text-[#0A0E2E]" />
+              <span className="text-[11px] font-bold text-[#0A0E2E]">Authorized and tracked</span>
+            </div>
           </div>
         </div>
 
@@ -72,8 +115,12 @@ export default function PermitsList() {
                   ))
                 ) : permits.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-20 text-center">
-                      <p className="text-[11px] font-medium text-[#0A0E2E]/65">No active permits at the moment.</p>
+                    <td colSpan={6} className="px-6 py-4">
+                      <EmptyState
+                        icon={ClipboardList}
+                        title="No Active Permits"
+                        description="There are currently no students authorized to be outside the campus."
+                      />
                     </td>
                   </tr>
                 ) : permits.map((permit) => (
@@ -101,7 +148,18 @@ export default function PermitsList() {
                     </td>
                     <td className="px-6 py-5">
                       <p className="text-xs font-bold text-[#0A0E2E]/70">
-                        {permit.staff ? `${permit.staff.firstName} ${permit.staff.lastName}` : 'System Admin'}
+                        {(() => {
+                          const sObj = permit.staff || permit.recordedBy || permit.createdBy;
+                          let name = sObj && sObj.firstName ? `${sObj.firstName} ${sObj.lastName}`.trim() : '';
+
+                          if (!name || name === 'undefined undefined') {
+                            const sId = permit.recordedById || permit.staffId || permit.createdById || permit.recordedBy?.id || permit.staff?.id;
+                            const found = staffList.find(s => s.id === sId);
+                            if (found) name = `${found.firstName} ${found.lastName}`.trim();
+                          }
+
+                          return name && name !== 'undefined undefined' ? name : 'Authorized Admin';
+                        })()}
                       </p>
                     </td>
                     <td className="px-6 py-5">

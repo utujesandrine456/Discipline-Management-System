@@ -94,134 +94,174 @@ export function StaffModal({ isOpen, onClose, onSuccess, staffMember }: StaffMod
                     <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-3xl rounded-full" />
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-bold">
-                            {staffMember ? 'Edit Staff Member' : 'Register New Staff'}
+                            {staffMember ? 'Staff Information' : 'Register New Staff'}
                         </DialogTitle>
                         <p className="text-white/60 text-sm font-medium mt-1">
-                            {staffMember ? 'Update personnel details and permissions.' : 'Add a new member to the school administration.'}
+                            {staffMember ? 'Personnel details and assignment.' : 'Add a new member to the school administration.'}
                         </p>
                     </DialogHeader>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-8 space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
+                {staffMember ? (
+                    <div className="p-8 space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <span className="text-[11px] font-bold text-[#0A0E2E]/50 uppercase tracking-wider">First Name</span>
+                                <p className="text-sm font-semibold text-[#0A0E2E]">{staffMember.firstName}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-[11px] font-bold text-[#0A0E2E]/50 uppercase tracking-wider">Last Name</span>
+                                <p className="text-sm font-semibold text-[#0A0E2E]">{staffMember.lastName}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <span className="text-[11px] font-bold text-[#0A0E2E]/50 uppercase tracking-wider">Email Address</span>
+                            <div className="flex items-center gap-2">
+                                <Mail className="h-4 w-4 text-[#0A0E2E]/40" />
+                                <p className="text-sm font-semibold text-[#0A0E2E]">{staffMember.email}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <span className="text-[11px] font-bold text-[#0A0E2E]/50 uppercase tracking-wider">Phone Number</span>
+                            <div className="flex items-center gap-2">
+                                <Phone className="h-4 w-4 text-[#0A0E2E]/40" />
+                                <p className="text-sm font-semibold text-[#0A0E2E]">{staffMember.phoneNumber}</p>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <span className="text-[11px] font-bold text-[#0A0E2E]/50 uppercase tracking-wider">Role</span>
+                                <p className="text-sm font-semibold text-[#0A0E2E] capitalize">{staffMember.role?.toLowerCase() || 'N/A'}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-[11px] font-bold text-[#0A0E2E]/50 uppercase tracking-wider">Status</span>
+                                <p className="text-sm font-semibold text-[#0A0E2E] capitalize">{staffMember.status?.toLowerCase() || 'N/A'}</p>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+
+                    <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">First Name</Label>
+                                <div className="relative group">
+                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#0A0E2E]/30 group-focus-within:text-[#0A0E2E] transition-colors" />
+                                    <Input
+                                        required
+                                        placeholder="Jean"
+                                        value={formData.firstName}
+                                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                        className="rounded-md pl-10 border-[#0A0E2E]/10 bg-slate-50 focus:bg-white h-12 text-sm font-bold"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">Last Name</Label>
+                                <div className="relative group">
+                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#0A0E2E]/30 group-focus-within:text-[#0A0E2E] transition-colors" />
+                                    <Input
+                                        required
+                                        placeholder="Kabera"
+                                        value={formData.lastName}
+                                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                        className="rounded-md pl-10 border-[#0A0E2E]/10 bg-slate-50 focus:bg-white h-12 text-sm font-bold"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="space-y-2">
-                            <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">First Name</Label>
+                            <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">Email Address</Label>
                             <div className="relative group">
-                                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#0A0E2E]/30 group-focus-within:text-[#0A0E2E] transition-colors" />
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#0A0E2E]/30 group-focus-within:text-[#0A0E2E] transition-colors" />
                                 <Input
                                     required
-                                    placeholder="Jean"
-                                    value={formData.firstName}
-                                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                    type="email"
+                                    placeholder="jean@rca.ac.rw"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     className="rounded-md pl-10 border-[#0A0E2E]/10 bg-slate-50 focus:bg-white h-12 text-sm font-bold"
                                 />
                             </div>
                         </div>
+
                         <div className="space-y-2">
-                            <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">Last Name</Label>
+                            <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">Phone Number</Label>
                             <div className="relative group">
-                                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#0A0E2E]/30 group-focus-within:text-[#0A0E2E] transition-colors" />
+                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#0A0E2E]/30 group-focus-within:text-[#0A0E2E] transition-colors" />
                                 <Input
                                     required
-                                    placeholder="Kabera"
-                                    value={formData.lastName}
-                                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                    placeholder="+250 788 000 000"
+                                    value={formData.phoneNumber}
+                                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                                     className="rounded-md pl-10 border-[#0A0E2E]/10 bg-slate-50 focus:bg-white h-12 text-sm font-bold"
                                 />
                             </div>
                         </div>
-                    </div>
 
-                    <div className="space-y-2">
-                        <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">Email Address</Label>
-                        <div className="relative group">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#0A0E2E]/30 group-focus-within:text-[#0A0E2E] transition-colors" />
-                            <Input
-                                required
-                                type="email"
-                                placeholder="jean@rca.ac.rw"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                className="rounded-md pl-10 border-[#0A0E2E]/10 bg-slate-50 focus:bg-white h-12 text-sm font-bold"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">Phone Number</Label>
-                        <div className="relative group">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#0A0E2E]/30 group-focus-within:text-[#0A0E2E] transition-colors" />
-                            <Input
-                                required
-                                placeholder="+250 788 000 000"
-                                value={formData.phoneNumber}
-                                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                                className="rounded-md pl-10 border-[#0A0E2E]/10 bg-slate-50 focus:bg-white h-12 text-sm font-bold"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">
-                            {staffMember ? 'New Password (Optional)' : 'Password'}
-                        </Label>
-                        <div className="relative group">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#0A0E2E]/30 group-focus-within:text-[#0A0E2E] transition-colors" />
-                            <Input
-                                required={!staffMember}
-                                type="password"
-                                placeholder="••••••••"
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                className="rounded-md pl-10 border-[#0A0E2E]/10 bg-slate-50 focus:bg-white h-12 text-sm font-bold"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">Role</Label>
-                            <Select
-                                value={formData.role}
-                                onValueChange={(val) => setFormData({ ...formData, role: val })}
-                            >
-                                <SelectTrigger className="rounded-md border-[#0A0E2E]/10 bg-slate-50 h-12 text-sm font-bold">
-                                    <SelectValue placeholder="Select role" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="ADMIN">Administrator</SelectItem>
-                                    <SelectItem value="STAFF">Staff</SelectItem>
-                                    <SelectItem value="SECURITY">Security</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">
+                                {staffMember ? 'New Password (Optional)' : 'Password'}
+                            </Label>
+                            <div className="relative group">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#0A0E2E]/30 group-focus-within:text-[#0A0E2E] transition-colors" />
+                                <Input
+                                    required={!staffMember}
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                    className="rounded-md pl-10 border-[#0A0E2E]/10 bg-slate-50 focus:bg-white h-12 text-sm font-bold"
+                                />
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">Status</Label>
-                            <Select
-                                value={formData.status}
-                                onValueChange={(val) => setFormData({ ...formData, status: val })}
-                            >
-                                <SelectTrigger className="rounded-md border-[#0A0E2E]/10 bg-slate-50 h-12 text-sm font-bold">
-                                    <SelectValue placeholder="Select status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="ACTIVE">Active</SelectItem>
-                                    <SelectItem value="INACTIVE">Inactive</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
 
-                    <div className="pt-2">
-                        <Button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full h-12 rounded-md bg-[#0A0E2E] hover:bg-[#1a264a] text-white font-bold text-sm shadow-xl shadow-[#0A0E2E]/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
-                        >
-                            {loading ? (staffMember ? 'Updating...' : 'Registering...') : (staffMember ? 'Save Changes' : 'Register Member')}
-                        </Button>
-                    </div>
-                </form>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">Role</Label>
+                                <Select
+                                    value={formData.role}
+                                    onValueChange={(val) => setFormData({ ...formData, role: val })}
+                                >
+                                    <SelectTrigger className="rounded-md border-[#0A0E2E]/10 bg-slate-50 h-12 text-sm font-bold">
+                                        <SelectValue placeholder="Select role" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ADMIN">Administrator</SelectItem>
+                                        <SelectItem value="STAFF">Staff</SelectItem>
+                                        <SelectItem value="SECURITY">Security</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold text-[#0A0E2E]/60 ml-1">Status</Label>
+                                <Select
+                                    value={formData.status}
+                                    onValueChange={(val) => setFormData({ ...formData, status: val })}
+                                >
+                                    <SelectTrigger className="rounded-md border-[#0A0E2E]/10 bg-slate-50 h-12 text-sm font-bold">
+                                        <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ACTIVE">Active</SelectItem>
+                                        <SelectItem value="INACTIVE">Inactive</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="pt-2">
+                            <Button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full h-12 rounded-md bg-[#0A0E2E] hover:bg-[#1a264a] text-white font-bold text-sm shadow-xl shadow-[#0A0E2E]/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
+                            >
+                                {loading ? (staffMember ? 'Updating...' : 'Registering...') : (staffMember ? 'Save Changes' : 'Register Member')}
+                            </Button>
+                        </div>
+                    </form>
+                )}
             </DialogContent>
         </Dialog>
     );

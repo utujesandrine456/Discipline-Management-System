@@ -47,9 +47,6 @@ export function AppHeader({ title, subtitle }: { title: string; subtitle?: strin
           {dropdownOpen && (
             <div className="absolute right-0 mt-3 w-48 bg-[#0A0E2E] rounded-md shadow-2xl border border-white/10 py-2 animate-fade-in text-white/90">
               <button onClick={() => { setDropdownOpen(false); router.push('/discipline/settings'); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-white/10 transition-colors">
-                <User className="h-4 w-4" /> Profile
-              </button>
-              <button onClick={() => { setDropdownOpen(false); router.push('/discipline/settings'); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm hover:bg-white/10 transition-colors">
                 <Settings className="h-4 w-4" /> Settings
               </button>
               <div className="h-px w-full bg-white/10 my-1" />
@@ -60,6 +57,6 @@ export function AppHeader({ title, subtitle }: { title: string; subtitle?: strin
           )}
         </div>
       </div>
-    </header>
+    </header >
   );
 }

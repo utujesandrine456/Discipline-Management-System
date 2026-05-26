@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   async rewrites() {
-    const backendUrl = process.env.BACKEND_URL || 'https://discipline-management-backend.onrender.com';
+    const backendUrl = process.env.BACKEND_URL || 'https://discipline-management-system-rgr8.onrender.com';
     return [
       {
         source: '/api-proxy/:path*',

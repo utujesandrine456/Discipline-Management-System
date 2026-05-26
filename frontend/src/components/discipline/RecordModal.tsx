@@ -27,6 +27,7 @@ interface RecordBackend {
     status: string;
     outDate: string;
     returnDate: string | null;
+    location: string;
     student?: {
         firstName: string;
         lastName: string;
@@ -46,7 +47,7 @@ export function RecordModal({ isOpen, onClose, onSuccess, record }: RecordModalP
         reason: '',
         status: '',
         outDate: '',
-        returnDate: '',
+        location: '',
     });
 
     useEffect(() => {
@@ -55,7 +56,7 @@ export function RecordModal({ isOpen, onClose, onSuccess, record }: RecordModalP
                 reason: record.reason || '',
                 status: record.status || '',
                 outDate: record.outDate ? new Date(record.outDate).toISOString().slice(0, 16) : '',
-                returnDate: record.returnDate ? new Date(record.returnDate).toISOString().slice(0, 16) : '',
+                location: record.location || '',
             });
         }
     }, [record, isOpen]);
@@ -71,9 +72,17 @@ export function RecordModal({ isOpen, onClose, onSuccess, record }: RecordModalP
                 body: JSON.stringify({
                     ...formData,
                     outDate: formData.outDate ? new Date(formData.outDate).toISOString() : null,
-                    returnDate: formData.returnDate ? new Date(formData.returnDate).toISOString() : null,
+                    returnDate: formData.status === 'RETURNED' ? new Date().toISOString() : null,
                 }),
             });
+
+            // If status changed to RETURNED, update student status to IN
+            if (formData.status === 'RETURNED') {
+                await apiFetch(`/students/${record.studentId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ status: 'IN' }),
+                });
+            }
 
             toast.success('Record updated successfully');
             onSuccess();
@@ -145,12 +154,12 @@ export function RecordModal({ isOpen, onClose, onSuccess, record }: RecordModalP
                                 className="border-[#0A0E2E]/10"
                             />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="returnDate" className="text-xs font-bold uppercase text-[#0A0E2E]/60">Return Date</Label>
+                        <div className="space-y-2 col-span-2">
+                            <Label htmlFor="location" className="text-xs font-bold uppercase text-[#0A0E2E]/60">Destination / Location</Label>
                             <Input
-                                type="datetime-local"
-                                value={formData.returnDate}
-                                onChange={(e) => setFormData(prev => ({ ...prev, returnDate: e.target.value }))}
+                                placeholder="Where did the student go?"
+                                value={formData.location}
+                                onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
                                 className="border-[#0A0E2E]/10"
                             />
                         </div>

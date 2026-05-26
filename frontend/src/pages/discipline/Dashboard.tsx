@@ -1,65 +1,52 @@
 import { useState, useEffect } from 'react';
-import { Users, Activity, Zap, Shield, Search, ShieldAlert, FileText, ClipboardList, UserCheck } from 'lucide-react';
+import { Users, Activity, Zap, Shield, Search, ShieldAlert, FileText, DoorOpen, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { StatusBadge } from '@/components/RCA/Badges';
 import { useAuthStore } from '@/stores/authStore';
 import { apiFetch } from '@/lib/api';
+import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
 
 export default function DisciplineDashboard() {
-  const [students, setStudents] = useState<any[]>([]);
-  const [records, setRecords] = useState<any[]>([]);
-  const [staff, setStaff] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [dateStr, setDateStr] = useState<string>('');
   const { user } = useAuthStore();
 
+  const { data: students = [], isLoading: loadingStudents } = useQuery<any[]>({
+    queryKey: ['students'],
+    queryFn: () => apiFetch('/students'),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const { data: records = [], isLoading: loadingRecords } = useQuery<any[]>({
+    queryKey: ['records'],
+    queryFn: () => apiFetch('/records'),
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const { data: staff = [], isLoading: loadingStaff } = useQuery<any[]>({
+    queryKey: ['staff'],
+    queryFn: () => apiFetch('/staff'),
+    staleTime: 1000 * 60 * 10,
+  });
+
+  // No global loading variable to prevent blocking the whole UI
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [studentsData, recordsData, staffData] = await Promise.all([
-          apiFetch('/students'),
-          apiFetch('/records'),
-          apiFetch('/staff')
-        ]);
-
-        // Use mock data fallback if API returns empty
-        setStudents(studentsData?.length > 0 ? studentsData : [
-          { id: 1, firstName: 'Jean', lastName: 'Kabera', year: '1', classGroup: 'A' },
-          { id: 2, firstName: 'Marie', lastName: 'Uwase', year: '2', classGroup: 'B' },
-          { id: 3, firstName: 'Eric', lastName: 'Mugisha', year: '3', classGroup: 'A' },
-        ]);
-        setRecords(recordsData?.length > 0 ? recordsData : [
-          { id: 1, studentId: 1, student: { firstName: 'Jean', lastName: 'Kabera' }, reason: 'Medical', status: 'OUT', createdAt: new Date().toISOString() },
-          { id: 2, studentId: 2, student: { firstName: 'Marie', lastName: 'Uwase' }, reason: 'Family', status: 'OUT', createdAt: new Date().toISOString() },
-        ]);
-        setStaff(staffData?.length > 0 ? staffData : [
-          { id: 1, firstName: 'Sandrine', lastName: 'Utuje', role: 'ADMIN' },
-          { id: 2, firstName: 'Sonia', lastName: 'Mubarak', role: 'SECURITY' },
-        ]);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-
     // Set date only on client to avoid hydration mismatch
     const today = new Date();
     setDateStr(today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }));
   }, []);
 
-
-  const activePermitsCount = records.filter(r => r.status === 'OUT').length || 12;
-  const recentRecords = records.length > 0 ? records.slice(0, 5) : [];
+  const activePermitsCount = records.filter(r => r.status === 'OUT').length;
+  const recentRecords = records.slice(0, 5);
 
   const stats = [
     { label: 'Students', value: students.length, icon: Users },
     { label: 'Staff', value: staff.length, icon: UserCheck },
     { label: 'Discipline Records', value: records.length, icon: FileText },
-    { label: 'Leave Permits', value: records.filter(r => r.status === 'OUT').length, icon: ClipboardList },
+    { label: 'Leave Permits', value: records.filter(r => r.status === 'OUT').length, icon: DoorOpen },
   ];
 
 
@@ -88,7 +75,12 @@ export default function DisciplineDashboard() {
         </div>
 
         <div className="mb-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat) => (
+          {[
+            { label: 'Students', value: students.length, icon: Users, loading: loadingStudents },
+            { label: 'Staff', value: staff.length, icon: UserCheck, loading: loadingStaff },
+            { label: 'Discipline Records', value: records.length, icon: FileText, loading: loadingRecords },
+            { label: 'Leave Permits', value: activePermitsCount, icon: DoorOpen, loading: loadingRecords },
+          ].map((stat) => (
             <div key={stat.label} className="group relative overflow-hidden rounded-md border border-[#0A0E2E]/15 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-[#0A0E2E]/10">
               <div className="absolute right-0 top-0 p-3 opacity-[0.06] transition-opacity group-hover:opacity-[0.1]">
                 <stat.icon size={76} className="text-[#0A0E2E]" />
@@ -99,7 +91,11 @@ export default function DisciplineDashboard() {
                 </div>
                 <p className="text-[12px] font-bold text-[#0A0E2E]/70">{stat.label}</p>
                 <div className="mt-1 flex items-end gap-3">
-                  <p className="text-3xl font-black leading-none text-[#0A0E2E]">{stat.value}</p>
+                  {stat.loading ? (
+                    <div className="h-9 w-16 bg-[#0A0E2E]/5 rounded animate-pulse" />
+                  ) : (
+                    <p className="text-3xl font-black leading-none text-[#0A0E2E]">{stat.value}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -129,19 +125,19 @@ export default function DisciplineDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#0A0E2E]/10">
-                    {loading ? (
+                    {loadingRecords ? (
                       [...Array(5)].map((_, i) => (
                         <tr key={i} className="animate-pulse">
-                          <td colSpan={4} className="h-14 bg-[#0A0E2E]/5 px-6 py-4" />
+                          <td colSpan={4} className="h-16 bg-[#0A0E2E]/5 px-6 py-4" />
                         </tr>
                       ))
                     ) : recentRecords.length > 0 ? recentRecords.map((record: any) => (
                       <tr key={record.id} className="transition-colors hover:bg-[#0A0E2E]/5">
                         <td className="px-6 py-4">
-                          <p className="text-sm font-bold text-[#0A0E2E]">{record.student?.firstName} {record.student?.lastName}</p>
+                          <p className="text-sm font-black text-[#0A0E2E]">{record.student?.firstName} {record.student?.lastName}</p>
                           <p className="text-[10px] font-medium text-[#0A0E2E]/65">ID: {record.studentId}</p>
                         </td>
-                        <td className="px-6 py-4 text-sm font-medium text-[#0A0E2E]/75">{record.reason}</td>
+                        <td className="px-6 py-4 text-sm font-bold text-[#0A0E2E]/75">{record.reason}</td>
                         <td className="px-6 py-4">
                           <StatusBadge status={record.status} className="border-[#0A0E2E] bg-[#0A0E2E] text-white" />
                         </td>
@@ -153,8 +149,8 @@ export default function DisciplineDashboard() {
                       </tr>
                     )) : (
                       <tr>
-                        <td colSpan={4} className="px-6 py-10 text-center text-sm font-medium text-[#0A0E2E]/65">
-                          No activity yet. Create a new record to populate this dashboard.
+                        <td colSpan={4} className="px-6 py-10 text-center text-sm font-black text-[#0A0E2E]/65 italic">
+                          No recent activity recorded.
                         </td>
                       </tr>
                     )}
@@ -171,16 +167,18 @@ export default function DisciplineDashboard() {
               <div className="space-y-3">
                 <div className="rounded-md border border-[#0A0E2E]/15 bg-white p-4">
                   <p className="text-[11px] font-bold text-[#0A0E2E]/60">Students in system</p>
-                  <p className="mt-1 text-2xl font-extrabold text-[#0A0E2E]">{students.length || 0}</p>
+                  {loadingStudents ? <div className="h-8 w-20 bg-[#0A0E2E]/5 animate-pulse rounded mt-1" /> : <p className="mt-1 text-2xl font-extrabold text-[#0A0E2E]">{students.length || 0}</p>}
                 </div>
                 <div className="rounded-md border border-[#0A0E2E]/15 bg-white p-4">
                   <p className="text-[11px] font-bold text-[#0A0E2E]/60">Active exits</p>
-                  <p className="mt-1 text-2xl font-extrabold text-[#0A0E2E]">{activePermitsCount}</p>
+                  {loadingRecords ? <div className="h-8 w-20 bg-[#0A0E2E]/5 animate-pulse rounded mt-1" /> : <p className="mt-1 text-2xl font-extrabold text-[#0A0E2E]">{activePermitsCount}</p>}
                 </div>
                 <div className="rounded-md border border-[#0A0E2E]/15 bg-white p-4">
                   <p className="text-[11px] font-bold text-[#0A0E2E]/60">Latest update</p>
                   <p className="mt-1 text-sm font-semibold text-[#0A0E2E]">
-                    {recentRecords[0]
+                    {loadingRecords ? (
+                      <span className="inline-block h-4 w-32 bg-[#0A0E2E]/5 animate-pulse rounded" />
+                    ) : recentRecords[0]
                       ? `${recentRecords[0].student?.firstName} ${recentRecords[0].student?.lastName} • ${recentRecords[0].status}`
                       : 'No recent activity'}
                   </p>

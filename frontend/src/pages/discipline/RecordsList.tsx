@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { Plus, Search, Eye, FileText, Calendar, User, UserCheck, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, FileText, Calendar, User, UserCheck, Pencil, Trash2, Filter, Clock, ClipboardList, Download } from 'lucide-react';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { StatusBadge } from '@/components/RCA/Badges';
 import { EmptyState } from '@/components/RCA/EmptyState';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
 import { toast } from 'sonner';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RecordModal } from '@/components/discipline/RecordModal';
 import { DeleteConfirmationModal } from '@/components/discipline/DeleteConfirmationModal';
+import { useAuthStore } from '@/stores/authStore';
+import { exportToExcel, exportToPDF } from '@/lib/exportUtils';
 
 interface RecordBackend {
   id: number;
@@ -18,7 +21,20 @@ interface RecordBackend {
   status: string;
   outDate: string;
   returnDate: string | null;
+  location: string;
   student?: {
+    firstName: string;
+    lastName: string;
+  };
+  staff?: {
+    firstName: string;
+    lastName: string;
+  };
+  recordedBy?: {
+    firstName: string;
+    lastName: string;
+  };
+  createdBy?: {
     firstName: string;
     lastName: string;
   };
@@ -26,10 +42,10 @@ interface RecordBackend {
 
 export default function RecordsList() {
   const router = useRouter();
-  const [records, setRecords] = useState<RecordBackend[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const { user } = useAuthStore();
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [recordToEdit, setRecordToEdit] = useState<RecordBackend | null>(null);
@@ -37,32 +53,26 @@ export default function RecordsList() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<number | null>(null);
 
-  const fetchRecords = async () => {
-    try {
-      const data = await apiFetch('/records');
-      const finalData = data?.length > 0 ? data : [
-        { id: 1, studentId: 101, reason: 'Medical Checkup', status: 'OUT', outDate: new Date().toISOString(), returnDate: null, student: { firstName: 'Jean', lastName: 'Kabera' } },
-        { id: 2, studentId: 102, reason: 'Family Emergency', status: 'RETURNED', outDate: new Date(Date.now() - 86400000).toISOString(), returnDate: new Date().toISOString(), student: { firstName: 'Marie', lastName: 'Uwase' } },
-        { id: 3, studentId: 103, reason: 'Holiday', status: 'OUT', outDate: new Date().toISOString(), returnDate: null, student: { firstName: 'Eric', lastName: 'Mugisha' } },
-      ];
-      setRecords(finalData);
-    } catch (error) {
-      console.error('Error fetching records:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: records = [], isLoading: loading } = useQuery<RecordBackend[]>({
+    queryKey: ['records'],
+    queryFn: () => apiFetch('/records'),
+    staleTime: 1000 * 60 * 2, // 2 minutes
+  });
 
-  useEffect(() => {
-    fetchRecords();
-  }, []);
+  const { data: staffList = [] } = useQuery<any[]>({
+    queryKey: ['staff'],
+    queryFn: () => apiFetch('/staff'),
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const fetchRecords = () => queryClient.invalidateQueries({ queryKey: ['records'] });
 
   const confirmDelete = async () => {
     if (!recordToDelete) return;
     try {
       await apiFetch(`/records/${recordToDelete}`, { method: 'DELETE' });
       toast.success('Record deleted successfully');
-      setRecords(prev => prev.filter(r => r.id !== recordToDelete));
+      fetchRecords();
     } catch (error) {
       toast.error('Failed to delete record');
     } finally {
@@ -79,6 +89,7 @@ export default function RecordsList() {
     return true;
   });
 
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('en-US', {
       month: 'short',
@@ -87,6 +98,39 @@ export default function RecordsList() {
       minute: '2-digit',
     });
   };
+
+  const recordColumns = [
+    { header: 'Student Name', key: 'studentName' },
+    { header: 'Reason', key: 'reason' },
+    { header: 'Exit Time', key: 'outDate' },
+    { header: 'Return Time', key: 'returnDate' },
+    { header: 'Location', key: 'location' },
+    { header: 'Status', key: 'status' },
+    { header: 'Approved By', key: 'approvedBy' },
+  ];
+
+  const exportData = filtered.map((r) => {
+    const sObj = r.staff || (r as any).recordedBy || (r as any).createdBy;
+    let staffName = sObj && sObj.firstName ? `${sObj.firstName} ${sObj.lastName}`.trim() : '';
+
+    if (!staffName || staffName === 'undefined undefined') {
+      const sId = (r as any).recordedById || (r as any).staffId || (r as any).createdById;
+      const found = staffList.find(s => s.id === sId);
+      if (found) staffName = `${found.firstName} ${found.lastName}`.trim();
+    }
+
+    if (!staffName || staffName === 'undefined undefined') staffName = user?.name || 'Admin';
+
+    return {
+      studentName: r.student ? `${r.student.firstName} ${r.student.lastName}` : 'Unknown',
+      reason: r.reason,
+      outDate: r.outDate ? formatDate(r.outDate) : '',
+      returnDate: r.returnDate ? formatDate(r.returnDate) : 'Still Out',
+      location: r.location || '',
+      status: r.status,
+      approvedBy: staffName,
+    };
+  });
 
   return (
     <div className="min-h-screen bg-white text-[#0A0E2E]">
@@ -100,50 +144,77 @@ export default function RecordsList() {
             </h2>
             <p className="text-[#0A0E2E]/70 text-sm mt-1 font-medium">Monitoring and managing active student exits.</p>
           </div>
-          <Button
-            className="rounded-md bg-[#0A0E2E] text-white hover:bg-[#0A0E2E]/90 shadow-lg shadow-[#0A0E2E]/20"
-            onClick={() => router.push('/discipline/records/new')}
-          >
-            <Plus className="h-4 w-4 mr-2" /> Record New Exit
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 border border-[#0A0E2E]/15 rounded-md overflow-hidden">
+              <button
+                onClick={() => exportToPDF(exportData, recordColumns, 'discipline_records', 'RCA — Discipline Records')}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#0A0E2E] hover:bg-[#0A0E2E] hover:text-white transition-all"
+              >
+                <Download className="h-3.5 w-3.5" /> PDF
+              </button>
+              <div className="w-px h-6 bg-[#0A0E2E]/15" />
+              <button
+                onClick={() => exportToExcel(exportData, recordColumns, 'discipline_records')}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#0A0E2E] hover:bg-[#0A0E2E] hover:text-white transition-all"
+              >
+                <Download className="h-3.5 w-3.5" /> Excel
+              </button>
+            </div>
+            <Button
+              className="rounded-md bg-[#0A0E2E] text-white hover:bg-[#0A0E2E]/90 shadow-lg shadow-[#0A0E2E]/20"
+              onClick={() => router.push('/discipline/records/new')}
+            >
+              <Plus className="h-4 w-4 mr-2" /> Record New Exit
+            </Button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-4 mb-8 bg-white dark:bg-slate-900 p-4 rounded-md border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 rounded-md border border-slate-200 dark:border-slate-800 px-4 py-2 flex-1 min-w-[240px]">
-            <Search className="h-4 w-4 text-slate-400" />
+        <div className="mb-6 flex flex-wrap gap-4 items-center justify-between p-6 bg-white rounded-md border border-[#0A0E2E]/15 shadow-sm">
+          <div className="flex-1 min-w-[300px] relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#0A0E2E]/50" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter by student name..."
-              className="bg-transparent text-sm font-medium outline-none w-full placeholder:text-slate-400"
+              placeholder="Search by student name..."
+              className="w-full bg-white rounded-md border border-[#0A0E2E]/15 py-2.5 pl-10 pr-4 text-sm font-medium outline-none transition-all focus:ring-2 focus:ring-[#0A0E2E]/10"
             />
           </div>
-          <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 rounded-md border border-slate-200 dark:border-slate-800 px-4 py-2">
-            <UserCheck className="h-4 w-4 text-slate-400" />
+
+          <div className="flex items-center gap-3 bg-white rounded-md border border-[#0A0E2E]/15 px-4 py-2 hover:border-[#0A0E2E]/30 transition-colors">
+            <Filter className="h-4 w-4 text-[#0A0E2E]/50" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-transparent text-sm font-bold outline-none min-w-[120px]"
+              className="bg-transparent text-sm font-bold text-[#0A0E2E] outline-none min-w-[150px] cursor-pointer"
             >
-              <option value="All">All Operational Status</option>
+              <option value="All">All Categories</option>
               <option value="OUT">Currently OUT</option>
-              <option value="RETURNED">Successfully RETURNED</option>
+              <option value="RETURNED">Returned Records</option>
             </select>
           </div>
         </div>
 
         {loading ? (
-          <div className="p-20 text-center space-y-4 rounded-md border border-[#0A0E2E]/15 bg-white shadow-sm">
-            <div className="w-12 h-12 border-4 border-[#0A0E2E] border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-[#0A0E2E]/70 font-medium">Loading records...</p>
+          <div className="bg-white rounded-md border border-[#0A0E2E]/15 overflow-hidden">
+            <div className="bg-[#0A0E2E]/5 h-14 border-b border-[#0A0E2E]/10" />
+            <div className="p-0">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex p-6 border-b border-[#0A0E2E]/5 animate-pulse gap-6">
+                  <div className="h-10 w-40 bg-[#0A0E2E]/5 rounded" />
+                  <div className="h-10 w-60 bg-[#0A0E2E]/5 rounded" />
+                  <div className="h-10 w-32 bg-[#0A0E2E]/5 rounded ml-auto" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState
-            icon={FileText}
-            title="No Records Found"
-            description="No matching records were found for your search."
-            actionLabel="New Record"
+            icon={ClipboardList}
+            title="Registry Empty"
+            description="No discipline records found matching your selection or search criteria."
+            actionLabel="Create First Record"
             onAction={() => router.push('/discipline/records/new')}
+            className="mt-4"
           />
         ) : (
           <div className="bg-white rounded-md shadow-sm border border-[#0A0E2E]/15 overflow-hidden">
@@ -151,48 +222,67 @@ export default function RecordsList() {
               <table className="w-full text-left">
                 <thead className="bg-[#0A0E2E]/5 border-b border-[#0A0E2E]/10">
                   <tr>
-                    {['Student Name', 'Reason', 'Exit Time', 'Return Time', 'Status', 'Actions'].map((h) => (
+                    {['Student Name', 'Reason', 'Exit Time', 'Return Time', 'Status', 'Approved By', 'Actions'].map((h) => (
                       <th key={h} className="px-6 py-5 text-sm font-semibold text-[#0A0E2E]">{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-[#0A0E2E]/10">
                   {filtered.map((record) => (
-                    <tr key={record.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                    <tr key={record.id} className="group hover:bg-[#0A0E2E]/5 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-md bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-xs">
+                          <div className="w-9 h-9 rounded-md bg-[#0A0E2E] text-white flex items-center justify-center font-black text-xs shadow-lg shadow-[#0A0E2E]/10 group-hover:scale-110 transition-transform">
                             {record.student?.firstName[0]}{record.student?.lastName[0]}
                           </div>
-                          <Link href={`/discipline/records/${record.id}`} className="text-sm font-bold text-slate-900 dark:text-slate-100 group-hover:text-brand-600 transition-colors underline-offset-4 decoration-brand-500/30">
+                          <Link href={`/discipline/records/${record.id}`} className="text-[14px] font-black text-[#0A0E2E] hover:underline decoration-[#0A0E2E]/30 underline-offset-4">
                             {record.student ? `${record.student.firstName} ${record.student.lastName}` : 'Unknown Student'}
                           </Link>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 w-fit rounded-md">
-                          <FileText className="w-3.5 h-3.5 text-slate-400" />
-                          <span className="text-[13px] font-medium text-slate-600 dark:text-slate-400">{record.reason}</span>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0A0E2E]/5 w-fit rounded-md border border-[#0A0E2E]/10">
+                          <FileText className="w-3.5 h-3.5 text-[#0A0E2E]/60" />
+                          <span className="text-[12px] font-bold text-[#0A0E2E]/80">{record.reason}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-slate-500 font-bold text-[11px]">
+                        <div className="flex items-center gap-2 text-[#0A0E2E]/60 font-black text-[11px]">
                           <Calendar className="w-3.5 h-3.5" />
                           {formatDate(record.outDate)}
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         {record.returnDate ? (
-                          <div className="flex items-center gap-2 text-emerald-600 font-bold text-[11px]">
+                          <div className="flex items-center gap-2 text-emerald-600 font-black text-[11px]">
                             <UserCheck className="w-3.5 h-3.5" />
                             {formatDate(record.returnDate)}
                           </div>
                         ) : (
-                          <span className="text-[11px] font-medium text-slate-400 italic">Pending</span>
+                          <div className="inline-flex items-center gap-2 px-2 py-0.5 rounded-md text-[11px] font-black text-amber-600 bg-amber-50 border border-amber-200">
+                            <Clock className="w-3 h-3" /> Still Out
+                          </div>
                         )}
                       </td>
                       <td className="px-6 py-4">
                         <StatusBadge status={record.status} />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 text-[12px] font-bold text-[#0A0E2E]/70">
+                          <UserCheck className="w-3.5 h-3.5 text-[#0A0E2E]/40" />
+                          {(() => {
+                            const sObj = record.staff || (record as any).recordedBy || (record as any).createdBy;
+                            let name = sObj && sObj.firstName ? `${sObj.firstName} ${sObj.lastName}`.trim() : '';
+
+                            if (!name || name === 'undefined undefined') {
+                              const sId = (record as any).recordedById || (record as any).staffId || (record as any).createdById;
+                              const found = staffList.find(s => s.id === sId);
+                              if (found) name = `${found.firstName} ${found.lastName}`.trim();
+                            }
+
+                            return name && name !== 'undefined undefined' ? name : (user?.name || 'Admin');
+                          })()}
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">

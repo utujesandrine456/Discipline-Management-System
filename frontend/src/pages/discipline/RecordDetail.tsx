@@ -18,6 +18,7 @@ interface RecordFull {
   status: string;
   outDate: string;
   returnDate: string | null;
+  location: string;
   student: {
     id: number;
     firstName: string;
@@ -77,6 +78,12 @@ export default function RecordDetail() {
           status: 'RETURNED',
           returnDate: new Date().toISOString()
         })
+      });
+
+      // SYNC STUDENT STATUS BACK TO IN
+      await apiFetch(`/students/${record.studentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'IN' }),
       });
       toast.success('Return confirmed');
       router.reload();
@@ -178,11 +185,12 @@ export default function RecordDetail() {
 
           <div className="p-10">
             {/* Intel Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-16">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-16">
               {[
                 { label: 'Reason for Exit', value: record.reason, icon: FileText },
                 { label: 'Exit Date', value: formatDate(record.outDate), icon: Clock },
-                { label: 'Expected Return', value: record.returnDate ? formatDate(record.returnDate) : 'Pending Return', icon: Calendar },
+                { label: 'Return Date', value: record.returnDate ? formatDate(record.returnDate) : 'Still Out', icon: Clock },
+                { label: 'Destination / Location', value: record.location || 'Not Specified', icon: MapPin },
                 {
                   label: 'Recorded By', value: (record.staff?.firstName || record.recordedBy?.firstName || record.createdBy?.firstName)
                     ? `${record.staff?.firstName || record.recordedBy?.firstName || record.createdBy?.firstName} ${record.staff?.lastName || record.recordedBy?.lastName || record.createdBy?.lastName || ''}`

@@ -1,22 +1,26 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { LayoutDashboard, Users, FileText, ClipboardList, Settings, Menu, X, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, DoorOpen, Settings, Menu, X, UserCheck, Bus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/RCA/Avatar';
 import { useAuthStore } from '@/stores/authStore';
+import { useQueryClient } from '@tanstack/react-query';
+import { apiFetch } from '@/lib/api';
 
 const navItems = [
-  { label: 'Dashboard', path: '/discipline/dashboard', icon: LayoutDashboard },
-  { label: 'Students', path: '/discipline/students', icon: Users },
-  { label: 'Staff Management', path: '/discipline/staff', icon: ShieldAlert },
-  { label: 'Discipline Records', path: '/discipline/records', icon: FileText },
-  { label: 'Leave Permits', path: '/discipline/permits', icon: ClipboardList },
-  { label: 'Settings', path: '/discipline/settings', icon: Settings },
+  { label: 'Dashboard', path: '/discipline/dashboard', icon: LayoutDashboard, queryKey: ['students', 'records', 'staff'] },
+  { label: 'Students', path: '/discipline/students', icon: Users, queryKey: ['students'] },
+  { label: 'Staff Management', path: '/discipline/staff', icon: UserCheck, queryKey: ['staff'] },
+  { label: 'Transport Management', path: '/discipline/transport', icon: Bus, queryKey: ['transport-routes'] },
+  { label: 'Discipline Records', path: '/discipline/records', icon: FileText, queryKey: ['records'] },
+  { label: 'Leave Permits', path: '/discipline/permits', icon: DoorOpen, queryKey: ['records'] },
+  { label: 'Settings', path: '/discipline/settings', icon: Settings, queryKey: [] },
 ];
 
 export function AppSidebar() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -24,6 +28,19 @@ export function AppSidebar() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const prefetchData = (keys: string[]) => {
+    keys.forEach(key => {
+      queryClient.prefetchQuery({
+        queryKey: [key],
+        queryFn: () => {
+          if (key === 'transport-routes') return apiFetch('/transport');
+          return apiFetch(`/${key}`);
+        },
+        staleTime: 1000 * 60 * 5,
+      });
+    });
+  };
 
   const isActive = (path: string) => router.asPath.startsWith(path);
 
@@ -42,6 +59,7 @@ export function AppSidebar() {
             key={item.path}
             href={item.path}
             onClick={() => setMobileOpen(false)}
+            onMouseEnter={() => prefetchData(item.queryKey)}
             className={cn(
               'sidebar-nav-link',
               isActive(item.path) && 'active'

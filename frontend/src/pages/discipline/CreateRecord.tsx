@@ -4,9 +4,16 @@ import { AppHeader } from '@/components/layout/AppHeader';
 import { StatusBadge } from '@/components/RCA/Badges';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Shield, Clock, FileText, CheckCircle2, AlertCircle, ArrowLeft, Send } from 'lucide-react';
+import { Shield, Clock, FileText, CheckCircle2, AlertCircle, ArrowLeft, Send, MapPin, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface StudentBackend {
   id: number;
@@ -24,13 +31,12 @@ export default function CreateRecord() {
 
   const studentRef = useRef<HTMLSelectElement>(null);
   const outDateRef = useRef<HTMLInputElement>(null);
-  const reasonRef = useRef<HTMLSelectElement>(null);
 
   const [form, setForm] = useState({
     studentId: '',
     reason: '',
     outDate: '',
-    expectedReturnDate: '',
+    location: '',
     description: '',
   });
 
@@ -60,9 +66,15 @@ export default function CreateRecord() {
           studentId: parseInt(form.studentId),
           reason: form.reason,
           outDate: form.outDate ? new Date(form.outDate).toISOString() : new Date().toISOString(),
-          returnDate: form.expectedReturnDate ? new Date(form.expectedReturnDate).toISOString() : null,
-          status: 'OUT'
+          status: 'OUT',
+          location: form.location
         }),
+      });
+
+      // Automatically update student status to OUT
+      await apiFetch(`/students/${form.studentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'OUT', location: form.location }),
       });
 
       toast.success('Exit recorded successfully');
@@ -106,21 +118,25 @@ export default function CreateRecord() {
               <div className="space-y-6">
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-slate-500 px-1">Student</label>
-                  <select
-                    ref={studentRef}
-                    disabled={fetching}
+                  <Select
                     value={form.studentId}
-                    onChange={(e) => update('studentId', e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); outDateRef.current?.focus(); } }}
-                    className="w-full rounded-md border border-[#0A0E2E]/15 bg-white px-4 py-3.5 text-sm font-medium outline-none focus:ring-2 focus:ring-[#0A0E2E]/20 transition-all appearance-none text-[#0A0E2E]"
+                    onValueChange={(val) => update('studentId', val)}
+                    disabled={fetching}
                   >
-                    <option value="">Select student...</option>
-                    {students.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.firstName} {s.lastName} — Year {s.year} {s.classGroup}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full h-12 rounded-md border border-[#0A0E2E]/15 bg-white px-4 text-sm font-medium focus:ring-2 focus:ring-[#0A0E2E]/20 transition-all text-[#0A0E2E]">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-[#0A0E2E]/50" />
+                        <SelectValue placeholder="Select student..." />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {students.map((s) => (
+                        <SelectItem key={s.id} value={s.id.toString()}>
+                          {s.firstName} {s.lastName} — Year {s.year} {s.classGroup}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
@@ -132,7 +148,6 @@ export default function CreateRecord() {
                       type="datetime-local"
                       value={form.outDate}
                       onChange={(e) => update('outDate', e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); reasonRef.current?.focus(); } }}
                       className="w-full rounded-md border border-[#0A0E2E]/15 bg-white pl-11 pr-4 py-3.5 text-sm font-medium outline-none focus:ring-2 focus:ring-[#0A0E2E]/20 transition-all text-[#0A0E2E]"
                     />
                   </div>
@@ -140,25 +155,33 @@ export default function CreateRecord() {
 
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-slate-500 px-1">Reason</label>
-                  <select
-                    ref={reasonRef}
+                  <Select
                     value={form.reason}
-                    onChange={(e) => update('reason', e.target.value)}
-                    className="w-full rounded-md border border-[#0A0E2E]/15 bg-white px-4 py-3.5 text-sm font-medium outline-none focus:ring-2 focus:ring-[#0A0E2E]/20 transition-all appearance-none text-[#0A0E2E]"
+                    onValueChange={(val) => update('reason', val)}
                   >
-                    <option value="">Select a reason...</option>
-                    {['Medical Checkup', 'Family Emergency', 'School Event', 'Official Errand', 'Holiday'].map((r) => <option key={r} value={r}>{r}</option>)}
-                  </select>
+                    <SelectTrigger className="w-full h-12 rounded-md border border-[#0A0E2E]/15 bg-white px-4 text-sm font-medium focus:ring-2 focus:ring-[#0A0E2E]/20 transition-all text-[#0A0E2E]">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-[#0A0E2E]/50" />
+                        <SelectValue placeholder="Select a reason..." />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['Medical Checkup', 'Family Emergency', 'School Event'].map((r) => (
+                        <SelectItem key={r} value={r}>{r}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-500 px-1">Expected Date and Time of Return</label>
+                  <label className="text-xs font-semibold text-slate-500 px-1">Location or Destination Address</label>
                   <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#0A0E2E]/50" />
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#0A0E2E]/50" />
                     <input
-                      type="datetime-local"
-                      value={form.expectedReturnDate}
-                      onChange={(e) => update('expectedReturnDate', e.target.value)}
+                      type="text"
+                      placeholder="e.g. Kigali, Home Address, etc."
+                      value={form.location}
+                      onChange={(e) => update('location', e.target.value)}
                       className="w-full rounded-md border border-[#0A0E2E]/15 bg-white pl-11 pr-4 py-3.5 text-sm font-medium outline-none focus:ring-2 focus:ring-[#0A0E2E]/20 transition-all text-[#0A0E2E]"
                     />
                   </div>
@@ -202,9 +225,9 @@ export default function CreateRecord() {
                     </span>
                   </div>
                   <div className="flex justify-between items-start">
-                    <span className="text-xs font-semibold text-white/60">Exp. Return:</span>
-                    <span className={cn('text-sm font-bold text-right', form.expectedReturnDate ? 'text-white' : 'text-white/40 italic')}>
-                      {form.expectedReturnDate ? new Date(form.expectedReturnDate).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Not specified'}
+                    <span className="text-xs font-semibold text-white/60">Destination:</span>
+                    <span className={cn('text-sm font-bold text-right', form.location ? 'text-white' : 'text-white/40 italic')}>
+                      {form.location || 'Not specified'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -231,13 +254,6 @@ export default function CreateRecord() {
                   </Button>
                 </div>
               </div>
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 rounded-md p-6 flex gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-              <p className="text-sm font-medium text-amber-800 leading-relaxed">
-                Warning: Recording this exit will update the student's status. Please make sure the student's guardians have been notified.
-              </p>
             </div>
           </div>
         </div>
