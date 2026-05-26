@@ -12,7 +12,7 @@ import { JwtStrategy } from './jwt.strategy';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET'),
+        secret: config.get<string>('JWT_SECRET') || 'default-fallback-secret-for-dev',
         signOptions: { expiresIn: '3d' },
       }),
     }),
